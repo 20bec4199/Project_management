@@ -26,7 +26,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   const { orgId, onTaskCreated, onTaskUpdated, onTaskDeleted, onNotification } =
     options;
 
-  const accessToken = useAuthStore((s: AuthState) => s.accessToken);
+  const user = useAuthStore((s: AuthState) => s.user);
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -46,10 +46,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   const stableNotification = useCallback((d: unknown) => onNotificationRef.current?.(d), []);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!user) return;
 
+    // Cookies are sent automatically; withCredentials handles auth
     const socket = io(SOCKET_URL, {
-      auth: { token: accessToken },
+      withCredentials: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -77,7 +78,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       setConnected(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, orgId]);
+  }, [user, orgId]);
 
   return { connected };
 }

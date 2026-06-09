@@ -10,11 +10,29 @@ export interface Org {
   plan: string;
 }
 
+export type OrgRole =
+  | "owner"
+  | "admin"
+  | "cto"
+  | "project_manager"
+  | "tech_lead"
+  | "scrum_master"
+  | "product_owner"
+  | "senior_developer"
+  | "developer"
+  | "qa_engineer"
+  | "devops_engineer"
+  | "designer"
+  | "data_analyst"
+  | "security_engineer"
+  | "member"
+  | "viewer";
+
 export interface OrgMember {
   id: string;
   userId: string;
-  role: string;
-  user: { id: string; email: string };
+  role: OrgRole;
+  user: { id: string; email: string; name?: string | null };
 }
 
 export interface OrgInvite {
@@ -49,7 +67,8 @@ export interface Task {
   projectId: string;
   title: string;
   description?: string;
-  assigneeId?: string | null;
+  /** All users assigned to this task */
+  assignees: Array<{ id: string; email: string; name?: string | null }>;
   createdBy: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -149,7 +168,8 @@ export interface CreateTaskInput {
   projectId: string;
   title: string;
   description?: string;
-  assigneeId?: string;
+  /** One or more user IDs to assign */
+  assigneeIds?: string[];
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string;
@@ -171,7 +191,7 @@ export function useCreateTask(orgId: string) {
           projectId: dto.projectId,
           title: dto.title,
           description: dto.description,
-          assigneeId: dto.assigneeId,
+          assignees: [],
           createdBy: "",
           status: dto.status ?? "todo",
           priority: dto.priority ?? "medium",
@@ -205,7 +225,8 @@ export function useCreateTask(orgId: string) {
 export interface UpdateTaskInput {
   title?: string;
   description?: string;
-  assigneeId?: string | null;
+  /** Replace the full assignee list; pass [] to remove all */
+  assigneeIds?: string[] | null;
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string | null;

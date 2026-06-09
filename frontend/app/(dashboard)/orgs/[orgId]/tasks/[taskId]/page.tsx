@@ -11,6 +11,7 @@ import {
   useAddComment,
   useDeleteComment,
   useTaskActivity,
+  useOrgMembers,
   type TaskStatus,
   type TaskPriority,
 } from "../../../../../../lib/hooks";
@@ -30,6 +31,19 @@ const STATUS_COLORS: Record<string, string> = {
   done: "bg-green-100 text-green-700",
 };
 
+/** Initials avatar for a user */
+function Avatar({ email }: { email: string }) {
+  const initials = email.slice(0, 2).toUpperCase();
+  return (
+    <span
+      title={email}
+      className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold ring-2 ring-white"
+    >
+      {initials}
+    </span>
+  );
+}
+
 export default function TaskDetailPage() {
   const { orgId, taskId } = useParams<{ orgId: string; taskId: string }>();
   const router = useRouter();
@@ -38,6 +52,7 @@ export default function TaskDetailPage() {
   const { data: task, isLoading } = useTask(orgId, taskId);
   const { data: comments } = useTaskComments(orgId, taskId);
   const { data: activity } = useTaskActivity(orgId, taskId);
+  const { data: members } = useOrgMembers(orgId);
 
   const updateTask = useUpdateTask(orgId, taskId);
   const deleteTask = useDeleteTask(orgId);
@@ -48,10 +63,13 @@ export default function TaskDetailPage() {
   const [title, setTitle] = useState("");
   const [commentBody, setCommentBody] = useState("");
   const [activeTab, setActiveTab] = useState<"comments" | "activity">("comments");
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
 
   if (isLoading || !task) {
     return <p className="text-sm text-gray-400">Loading…</p>;
   }
+
+  const currentAssigneeIds = task.assignees?.map((a) => a.id) ?? [];
 
   async function saveTitle() {
     if (!title.trim() || title === task!.title) { setEditTitle(false); return; }
@@ -65,6 +83,13 @@ export default function TaskDetailPage() {
 
   async function handlePriorityChange(priority: TaskPriority) {
     await updateTask.mutateAsync({ priority });
+  }
+
+  async function toggleAssignee(memberId: string) {
+    const next = currentAssigneeIds.includes(memberId)
+      ? currentAssigneeIds.filter((id) => id !== memberId)
+      : [...currentAssigneeIds, memberId];
+    await updateTask.mutateAsync({ assigneeIds: next });
   }
 
   async function handleAddComment(e: React.FormEvent) {
@@ -81,7 +106,7 @@ export default function TaskDetailPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl w-full">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link href={`/orgs/${orgId}/tasks`} className="hover:text-gray-900">
@@ -114,8 +139,8 @@ export default function TaskDetailPage() {
         )}
       </div>
 
-      {/* Meta */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      {/* Meta row */}
+      <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
         <select
           value={task.status}
           onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
@@ -141,10 +166,66 @@ export default function TaskDetailPage() {
         )}
         <button
           onClick={handleDelete}
-          className="ml-auto text-xs text-gray-400 hover:text-red-500 transition"
+          className="text-xs text-gray-400 hover:text-red-500 transition sm:ml-auto"
         >
           Delete task
         </button>
+      </div>
+
+      {/* Assignees */}
+      <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Assignees ({task.assignees?.length ?? 0})
+          </span>
+          <button
+            onClick={() => setShowAssigneePicker((v) => !v)}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            {showAssigneePicker ? "Done" : "Edit"}
+          </button>
+        </div>
+
+        {/* Current assignees */}
+        {task.assignees && task.assignees.length > 0 ? (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {task.assignees.map((a) => (
+              <div key={a.id} className="flex items-center gap-1.5">
+                <Avatar email={a.email} />
+                <span className="text-xs text-gray-700">{a.name ?? a.email}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mb-3">No assignees yet.</p>
+        )}
+
+        {/* Member picker */}
+        {showAssigneePicker && members && (
+          <div className="border-t border-gray-100 pt-3 space-y-1 max-h-48 overflow-y-auto">
+            {members.map((m) => {
+              const assigned = currentAssigneeIds.includes(m.userId);
+              return (
+                <label
+                  key={m.id}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-lg"
+                >
+                  <input
+                    type="checkbox"
+                    checked={assigned}
+                    onChange={() => toggleAssignee(m.userId)}
+                    className="rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <Avatar email={m.user?.email ?? m.userId} />
+                  <span className="text-xs text-gray-700">
+                    {m.user?.name ?? m.user?.email ?? m.userId}
+                  </span>
+                  <span className="ml-auto text-xs text-gray-400">{m.role}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Description */}
@@ -200,7 +281,7 @@ export default function TaskDetailPage() {
             </div>
           ))}
 
-          <form onSubmit={handleAddComment} className="flex gap-2 pt-2">
+          <form onSubmit={handleAddComment} className="flex flex-col sm:flex-row gap-2 pt-2">
             <textarea
               rows={2}
               placeholder="Add a comment…"
@@ -211,7 +292,7 @@ export default function TaskDetailPage() {
             <button
               type="submit"
               disabled={addComment.isPending || !commentBody.trim()}
-              className="bg-blue-600 text-white text-sm px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition self-end py-2"
+              className="bg-blue-600 text-white text-sm px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition sm:self-end py-2"
             >
               Post
             </button>
@@ -249,3 +330,4 @@ export default function TaskDetailPage() {
     </div>
   );
 }
+

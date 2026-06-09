@@ -13,9 +13,9 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     private readonly redis: RedisService,
   ) {
     super({
-      // Accept refresh token from Authorization header OR request body
+      // Extract refresh token from HttpOnly cookie (primary) or body (fallback)
       jwtFromRequest: ExtractJwt.fromExtractors([
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: Request) => (req?.cookies as Record<string, string | undefined>)?.refresh_token ?? null,
         (req: Request) => req?.body?.refreshToken ?? null,
       ]),
       ignoreExpiration: false,

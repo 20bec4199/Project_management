@@ -35,7 +35,7 @@ export default function AcceptInvitePage() {
   const router = useRouter();
   const token = searchParams.get("token");
 
-  const { accessToken, setAuth } = useAuthStore((s: AuthState) => s);
+  const { user, setAuth } = useAuthStore((s: AuthState) => s);
   const setActiveOrg = useOrgStore((s) => s.setActiveOrg);
 
   const [stage, setStage] = useState<Stage>("init");
@@ -71,7 +71,7 @@ export default function AcceptInvitePage() {
       setStage("error");
       return;
     }
-    if (accessToken) {
+    if (user) {
       void doAccept();
     } else {
       setStage("needs-auth");
@@ -91,13 +91,11 @@ export default function AcceptInvitePage() {
     try {
       const endpoint = authMode === "login" ? "/auth/login" : "/auth/register";
       const { data } = await api.post<{
-        user: { id: string; email: string };
-        accessToken: string;
-        refreshToken: string;
+        user: { id: string; email: string; name?: string | null };
       }>(endpoint, { email, password });
 
-      // Store auth first — api interceptor will pick it up immediately
-      setAuth(data.user, data.accessToken, data.refreshToken);
+      // Store user info — tokens are in HttpOnly cookies
+      setAuth(data.user);
 
       // Accept right away without waiting for a re-render
       await doAccept();

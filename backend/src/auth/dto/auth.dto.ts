@@ -23,14 +23,6 @@ const LoginSchema = z.object({
 
 export class LoginDto extends createZodDto(LoginSchema) {}
 
-// ── Refresh ──────────────────────────────────────────────────────────────────
-
-const RefreshSchema = z.object({
-  refreshToken: z.string().min(1),
-});
-
-export class RefreshDto extends createZodDto(RefreshSchema) {}
-
 // ── Password reset ────────────────────────────────────────────────────────────
 
 const ForgotPasswordSchema = z.object({

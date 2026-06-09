@@ -42,6 +42,14 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
+  // ── Me ────────────────────────────────────────────────────────────────────
+
+  async getMe(userId: string): Promise<{ id: string; email: string; name: string | null }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    return { id: user.id, email: user.email, name: user.name ?? null };
+  }
+
   // ── Register ──────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto): Promise<AuthTokens> {
@@ -143,7 +151,11 @@ export class AuthService {
     const hashedRefresh = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
     await this.redis.setRefreshToken(user.id, hashedRefresh, refreshTtl);
 
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      user: { id: user.id, email: user.email, name: user.name ?? null },
+    };
   }
 
   // ── Forgot password ───────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { User } from '../entities/user.entity';
 import { Task, TaskStatus, TaskPriority } from '../entities/task.entity';
 import { TaskActivity, ActivityAction } from '../entities/task-activity.entity';
 import { Project } from '../entities/project.entity';
@@ -75,6 +76,8 @@ export class TasksService {
     private readonly projectRepo: Repository<Project>,
     @InjectRepository(Label)
     private readonly labelRepo: Repository<Label>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
     private readonly redisService: RedisService,
@@ -99,11 +102,16 @@ export class TasksService {
       title: dto.title,
       description: dto.description ?? null,
       projectId: dto.projectId,
-      assigneeId: dto.assigneeId ?? null,
       status: dto.status ?? TaskStatus.TODO,
       priority: dto.priority ?? TaskPriority.MEDIUM,
       dueDate: dto.dueDate ?? null,
     });
+
+    if (dto.assigneeIds?.length) {
+      task.assignees = await this.userRepo.findBy({ id: In(dto.assigneeIds) });
+    } else {
+      task.assignees = [];
+    }
 
     if (dto.labelIds?.length) {
       task.labels = await this.labelRepo.findBy({ id: In(dto.labelIds), orgId });
@@ -121,16 +129,18 @@ export class TasksService {
     // Real-time broadcast to the org room
     this.eventsGateway.emitTaskCreated(orgId, task);
 
-    // Notify assignee if one was set
-    if (task.assigneeId && task.assigneeId !== userId) {
-      this.notificationsService
-        .create({
-          userId: task.assigneeId,
-          orgId,
-          type: NotificationType.TASK_ASSIGNED,
-          payload: { taskId: task.id, title: task.title, assignedBy: userId },
-        })
-        .catch(() => {});
+    // Notify all assignees except the creator
+    for (const assignee of task.assignees) {
+      if (assignee.id !== userId) {
+        this.notificationsService
+          .create({
+            userId: assignee.id,
+            orgId,
+            type: NotificationType.TASK_ASSIGNED,
+            payload: { taskId: task.id, title: task.title, assignedBy: userId },
+          })
+          .catch(() => {});
+      }
     }
 
     return task;
@@ -139,7 +149,7 @@ export class TasksService {
   async findOne(orgId: string, taskId: string): Promise<Task> {
     const task = await this.taskRepo.findOne({
       where: { id: taskId, orgId },
-      relations: ['assignee', 'creator', 'labels'],
+      relations: ['assignees', 'creator', 'labels'],
     });
     if (!task) throw new NotFoundException('Task not found');
     return task;
@@ -184,20 +194,19 @@ export class TasksService {
         ),
       );
     }
-    if ('assigneeId' in dto) {
-      if (dto.assigneeId && !task.assigneeId) {
+    if ('assigneeIds' in dto) {
+      const newIds = dto.assigneeIds ?? [];
+      const oldIds = (task.assignees ?? []).map((u) => u.id);
+      const added = newIds.filter((id) => !oldIds.includes(id));
+      const removed = oldIds.filter((id) => !newIds.includes(id));
+      if (added.length)
         activities.push(
-          this.logActivity(taskId, orgId, userId, ActivityAction.ASSIGNED, {
-            assigneeId: dto.assigneeId,
-          }),
+          this.logActivity(taskId, orgId, userId, ActivityAction.ASSIGNED, { added }),
         );
-      } else if (!dto.assigneeId && task.assigneeId) {
+      if (removed.length)
         activities.push(
-          this.logActivity(taskId, orgId, userId, ActivityAction.UNASSIGNED, {
-            previousAssigneeId: task.assigneeId,
-          }),
+          this.logActivity(taskId, orgId, userId, ActivityAction.UNASSIGNED, { removed }),
         );
-      }
     }
     if ('dueDate' in dto && dto.dueDate !== task.dueDate) {
       activities.push(
@@ -214,9 +223,16 @@ export class TasksService {
       );
     }
 
-    // Extract labelIds before assigning to task to avoid TypeORM confusion
-    const { labelIds, ...taskFields } = dto;
+    // Extract relation IDs before assigning scalar fields to avoid TypeORM confusion
+    const { labelIds, assigneeIds, ...taskFields } = dto;
     Object.assign(task, taskFields);
+
+    if (assigneeIds !== undefined) {
+      const newAssignees = assigneeIds?.length
+        ? await this.userRepo.findBy({ id: In(assigneeIds) })
+        : [];
+      task.assignees = newAssignees;
+    }
 
     if (labelIds !== undefined) {
       task.labels = labelIds?.length
@@ -233,30 +249,21 @@ export class TasksService {
     // Real-time broadcast
     this.eventsGateway.emitTaskUpdated(orgId, saved);
 
-    // Notify new assignee if assigneeId changed
-    if (
-      'assigneeId' in dto &&
-      dto.assigneeId &&
-      dto.assigneeId !== task.assigneeId
-    ) {
-      this.notificationsService
-        .create({
-          userId: dto.assigneeId,
-          orgId,
-          type: NotificationType.TASK_ASSIGNED,
-          payload: { taskId: saved.id, title: saved.title, assignedBy: userId },
-        })
-        .catch(() => {});
-    } else if (saved.assigneeId && saved.assigneeId !== userId) {
-      // Notify existing assignee of the update
-      this.notificationsService
-        .create({
-          userId: saved.assigneeId,
-          orgId,
-          type: NotificationType.TASK_UPDATED,
-          payload: { taskId: saved.id, title: saved.title, updatedBy: userId },
-        })
-        .catch(() => {});
+    // Notify newly added assignees
+    if ('assigneeIds' in dto && assigneeIds?.length) {
+      const oldIds = (task.assignees ?? []).map((u) => u.id);
+      for (const newId of assigneeIds) {
+        if (!oldIds.includes(newId) && newId !== userId) {
+          this.notificationsService
+            .create({
+              userId: newId,
+              orgId,
+              type: NotificationType.TASK_ASSIGNED,
+              payload: { taskId: saved.id, title: saved.title, assignedBy: userId },
+            })
+            .catch(() => {});
+        }
+      }
     }
 
     return saved;
@@ -290,7 +297,7 @@ export class TasksService {
 
     const qb = this.taskRepo
       .createQueryBuilder('t')
-      .leftJoinAndSelect('t.assignee', 'assignee')
+      .leftJoinAndSelect('t.assignees', 'assignees')
       .leftJoinAndSelect('t.creator', 'creator')
       .leftJoinAndSelect('t.labels', 'labels')
       .where('t.orgId = :orgId', { orgId });
@@ -298,7 +305,8 @@ export class TasksService {
     // Filters
     if (projectId) qb.andWhere('t.projectId = :projectId', { projectId });
 
-    if (assigneeId) qb.andWhere('t.assigneeId = :assigneeId', { assigneeId });
+    if (assigneeId)
+      qb.innerJoin('t.assignees', 'filterAssignee', 'filterAssignee.id = :assigneeId', { assigneeId });
 
     if (status) qb.andWhere('t.status = :status', { status });
 

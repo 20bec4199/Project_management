@@ -22,12 +22,10 @@ export default function RegisterPage() {
 
     try {
       const { data } = await api.post<{
-        user: { id: string; email: string };
-        accessToken: string;
-        refreshToken: string;
+        user: { id: string; email: string; name?: string | null };
       }>("/auth/register", { email, password });
 
-      setAuth(data.user, data.accessToken, data.refreshToken);
+      setAuth(data.user);
       router.push("/dashboard");
     } catch (err: unknown) {
       const msg =

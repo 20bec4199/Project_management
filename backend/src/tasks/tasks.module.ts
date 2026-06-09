@@ -7,6 +7,7 @@ import { TaskActivity } from '../entities/task-activity.entity';
 import { Project } from '../entities/project.entity';
 import { OrgMember } from '../entities/org-member.entity';
 import { Label } from '../entities/label.entity';
+import { User } from '../entities/user.entity';
 
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
@@ -23,6 +24,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Project,
       OrgMember,
       Label,
+      User,
     ]),
     EventsModule,
     NotificationsModule,

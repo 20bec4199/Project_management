@@ -44,7 +44,7 @@ export function NotificationInbox({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">

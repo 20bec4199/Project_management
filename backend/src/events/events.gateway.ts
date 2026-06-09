@@ -34,9 +34,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      const token =
+      // 1. Try the legacy auth.token handshake (kept for back-compat / testing)
+      // 2. Try cookies sent with withCredentials: true
+      let token: string | undefined =
         (client.handshake.auth?.token as string | undefined) ??
         (client.handshake.query?.token as string | undefined);
+
+      if (!token) {
+        // Parse access_token from the Cookie header
+        const cookieHeader = client.handshake.headers?.cookie ?? '';
+        const match = cookieHeader.match(/(?:^|;\s*)access_token=([^;]+)/);
+        if (match) token = decodeURIComponent(match[1]);
+      }
 
       if (!token) throw new Error('Missing token');
 

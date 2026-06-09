@@ -17,14 +17,14 @@ export default function OrgOverviewPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start sm:items-center justify-between mb-6 gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Overview</h1>
           <p className="text-sm text-gray-500">All projects in this organization</p>
         </div>
         <Link
           href={`/orgs/${orgId}/projects`}
-          className="text-sm text-blue-600 hover:underline"
+          className="text-sm text-blue-600 hover:underline shrink-0"
         >
           View all projects →
         </Link>

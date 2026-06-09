@@ -47,9 +47,6 @@ export class Task {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ name: 'assignee_id', type: 'uuid', nullable: true })
-  assigneeId: string | null;
-
   @Column({ name: 'created_by', type: 'uuid' })
   createdBy: string;
 
@@ -76,12 +73,13 @@ export class Task {
   @JoinColumn({ name: 'project_id' })
   project: Project;
 
-  @ManyToOne(() => User, (user) => user.assignedTasks, {
-    onDelete: 'SET NULL',
-    nullable: true,
+  @ManyToMany(() => User, (user) => user.assignedTasks, { cascade: false, eager: false })
+  @JoinTable({
+    name: 'task_assignees',
+    joinColumn: { name: 'task_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
   })
-  @JoinColumn({ name: 'assignee_id' })
-  assignee: User | null;
+  assignees: User[];
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'created_by' })

@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -37,7 +38,7 @@ export class User {
   @OneToMany(() => OrgMember, (member) => member.user)
   orgMemberships: OrgMember[];
 
-  @OneToMany(() => Task, (task) => task.assignee)
+  @ManyToMany(() => Task, (task) => task.assignees)
   assignedTasks: Task[];
 
   @OneToMany(() => Notification, (notification) => notification.user)

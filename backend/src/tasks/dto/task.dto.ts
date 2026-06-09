@@ -8,7 +8,8 @@ const CreateTaskSchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().optional(),
   projectId: z.string().uuid(),
-  assigneeId: z.string().uuid().optional(),
+  /** One or more member IDs to assign to this task */
+  assigneeIds: z.array(z.string().uuid()).optional(),
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
   dueDate: z.coerce.date().optional(),
@@ -21,7 +22,8 @@ export class CreateTaskDto extends createZodDto(CreateTaskSchema) {}
 const UpdateTaskSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   description: z.string().nullable().optional(),
-  assigneeId: z.string().uuid().nullable().optional(),
+  /** Replace the full assignee list; pass [] to remove all assignees */
+  assigneeIds: z.array(z.string().uuid()).nullable().optional(),
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
   dueDate: z.coerce.date().nullable().optional(),
@@ -38,6 +40,7 @@ const TaskQuerySchema = z.object({
 
   // Filters
   projectId: z.string().uuid().optional(),
+  /** Filter by any assignee */
   assigneeId: z.string().uuid().optional(),
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
