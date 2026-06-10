@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { api } from "../../../../lib/api";
 import { useAuthStore, type AuthState } from "../../../../store/auth.store";
 import { useOrgStore } from "../../../../store/org.store";
@@ -30,7 +30,7 @@ function extractError(err: unknown): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function AcceptInvitePage() {
+function AcceptInviteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -289,5 +289,20 @@ export default function AcceptInvitePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center py-12">
+          <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-sm text-gray-500">Loading…</p>
+        </div>
+      }
+    >
+      <AcceptInviteContent />
+    </Suspense>
   );
 }
