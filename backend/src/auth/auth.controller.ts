@@ -38,7 +38,7 @@ export class AuthController {
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: accessMaxAge,
       path: '/',
     });
@@ -46,7 +46,7 @@ export class AuthController {
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: refreshMaxAge,
       // Restrict refresh cookie to the refresh endpoint
       path: '/api/auth/refresh',
@@ -54,8 +54,10 @@ export class AuthController {
   }
 
   private clearTokenCookies(res: Response): void {
-    res.clearCookie('access_token', { path: '/' });
-    res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const opts = { secure: isProd, sameSite: isProd ? ('none' as const) : ('lax' as const) };
+    res.clearCookie('access_token', { path: '/', ...opts });
+    res.clearCookie('refresh_token', { path: '/api/auth/refresh', ...opts });
   }
 
   @UseGuards(JwtAccessGuard)

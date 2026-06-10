@@ -7,10 +7,8 @@ import { SocketIoAdapter } from './events/socket-io.adapter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Socket.IO adapter (custom – defers getHttpServer() until after full init)
   app.useWebSocketAdapter(new SocketIoAdapter(app));
 
-  // CORS – allow the frontend dev server and any configured origin
   app.enableCors({
     origin: process.env.FRONTEND_URL?.split(',') ?? [
       'http://localhost:3000',
@@ -22,18 +20,17 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
 
-  // Global prefix
   app.setGlobalPrefix('api');
 
-  // Parse cookies (needed if you later move tokens to HttpOnly cookies)
   app.use(cookieParser());
 
-  // Zod validation applied globally to all incoming requests
   app.useGlobalPipes(new ZodValidationPipe());
 
-  const port = process.env.PORT ?? 4000;
-  await app.listen(port);
-  console.log(`Server running on http://localhost:${port}/api`);
-}
-bootstrap();
+  const port = process.env.PORT || 4000;
 
+  await app.listen(port, '0.0.0.0');
+
+  console.log(`Server running on port ${port}`);
+}
+
+bootstrap();
