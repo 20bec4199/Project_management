@@ -12,6 +12,7 @@ export const envSchema = z.object({
   DB_USERNAME: z.string().min(1),
   DB_PASSWORD: z.string().min(1),
   DB_NAME: z.string().min(1),
+  DB_SSL: z.string().optional().default('true'),
 
   REDIS_HOST: z.string().min(1),
   REDIS_PORT: z.coerce.number().default(6379),

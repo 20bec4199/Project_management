@@ -55,6 +55,9 @@ import { SearchModule } from './search/search.module';
         username: config.getOrThrow<string>('DB_USERNAME'),
         password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.getOrThrow<string>('DB_NAME'),
+        ssl: config.get<string>('DB_SSL') !== 'false'
+          ? { rejectUnauthorized: false }
+          : false,
         entities: [
           Tenant,
           User,
