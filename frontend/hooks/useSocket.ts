@@ -66,7 +66,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     });
 
     socket.on("disconnect", () => setConnected(false));
-    socket.on("connect_error", () => setConnected(false));
+    socket.on("connect_error", () => setConnected(false));    
 
     socket.on("task:created", stableTaskCreated);
     socket.on("task:updated", stableTaskUpdated);
