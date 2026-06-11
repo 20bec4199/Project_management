@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project, ProjectStatus } from '../entities/project.entity';
@@ -18,7 +15,7 @@ export interface ProjectStats {
 @Injectable()
 export class ProjectsService {
   private static readonly PROJECTS_TTL = 5 * 60; // 5 minutes
-  private static readonly STATS_TTL = 2 * 60;    // 2 minutes
+  private static readonly STATS_TTL = 2 * 60; // 2 minutes
 
   constructor(
     @InjectRepository(Project)
@@ -29,7 +26,11 @@ export class ProjectsService {
     private readonly planLimits: PlanLimitsService,
   ) {}
 
-  async create(orgId: string, userId: string, dto: CreateProjectDto): Promise<Project> {
+  async create(
+    orgId: string,
+    userId: string,
+    dto: CreateProjectDto,
+  ): Promise<Project> {
     await this.planLimits.assertProjectLimit(orgId);
 
     const project = this.projectRepo.create({
@@ -52,7 +53,11 @@ export class ProjectsService {
       order: { name: 'ASC' },
     });
 
-    await this.redisService.setCache(cacheKey, projects, ProjectsService.PROJECTS_TTL);
+    await this.redisService.setCache(
+      cacheKey,
+      projects,
+      ProjectsService.PROJECTS_TTL,
+    );
     return projects;
   }
 
@@ -76,7 +81,10 @@ export class ProjectsService {
       .createQueryBuilder('t')
       .select('t.status', 'status')
       .addSelect('COUNT(*)', 'count')
-      .where('t.projectId = :projectId AND t.orgId = :orgId', { projectId, orgId })
+      .where('t.projectId = :projectId AND t.orgId = :orgId', {
+        projectId,
+        orgId,
+      })
       .groupBy('t.status')
       .getRawMany<{ status: string; count: string }>();
 
@@ -88,11 +96,19 @@ export class ProjectsService {
     }
 
     const stats: ProjectStats = { total, byStatus };
-    await this.redisService.setCache(cacheKey, stats, ProjectsService.STATS_TTL);
+    await this.redisService.setCache(
+      cacheKey,
+      stats,
+      ProjectsService.STATS_TTL,
+    );
     return stats;
   }
 
-  async update(orgId: string, projectId: string, dto: UpdateProjectDto): Promise<Project> {
+  async update(
+    orgId: string,
+    projectId: string,
+    dto: UpdateProjectDto,
+  ): Promise<Project> {
     const project = await this.findOne(orgId, projectId);
     Object.assign(project, dto);
     const saved = await this.projectRepo.save(project);
