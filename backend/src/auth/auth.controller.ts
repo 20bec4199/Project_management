@@ -49,7 +49,7 @@ export class AuthController {
       sameSite: isProd ? 'none' : 'lax',
       maxAge: refreshMaxAge,
       // Restrict refresh cookie to the refresh endpoint
-      path: '/api/auth/refresh',
+      path: '/',
     });
   }
 
