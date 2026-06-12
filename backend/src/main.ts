@@ -13,7 +13,7 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL?.split(',') ?? [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://project-management-mu-khaki.vercel.app/',
+      'https://project-management-mu-khaki.vercel.app',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
